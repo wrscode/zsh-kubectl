@@ -1,56 +1,69 @@
 #!/usr/bin/env zsh
 
+COMPLETIONS_FILE_NAME="_kubectl"
+COMPLETIONS_FOLDER="${ZAP_PLUGIN_DIR}/zsh-kubectl/completions"
+COMPLETIONS_FILE_PATH="${COMPLETIONS_FOLDER}/${COMPLETIONS_FILE_NAME}"
+
 if (( ! $+commands[kubectl] )); then
   return
 fi
 
-function kubectl_completion()
+function make_completions()
 {
   kubectl completion zsh 2>/dev/null
 }
 
-function kubectl_prepare_completion()
+function make_completions_file()
 {
-  local completion_file_path="${1}"
-  kubectl_completion > "${completion_file_path}"
+  if [[ "$#" == "1" ]]; then
+    local completion_file_path="${1}"
+    make_completions > "${completion_file_path}" || 
+    {
+      exit 102
+    }
+  else
+    exit 103
+  fi
 }
 
-function kubectl_completion_sum()
+function calculate_sum()
 {
-  kubectl_completion | md5sum | cut -d ' ' -f1
+  if [[ "$#" == "1" ]]; then
+    echo "${1}" | md5sum | cut -d ' ' -f1
+  else
+    exit 104
+  fi
 }
 
-function kubectl_completion_file_sum()
-{
-  local completion_file_path="${1}"
-  md5sum "${completion_file_path}" | cut -d ' ' -f1
-}
-
-# This command is used a LOT in daily life
+# Main function
 alias k=kubectl
 
-local completions_file_name="_kubectl"
-local completions_dir="${ZAP_PLUGIN_DIR}/zsh-kubectl/completions"
-local completions_file_path="${completions_dir}/${completions_file_name}"
-
-if [[ ! -d "${completions_dir}" ]]; then
-  mkdir "${completions_dir}"
+if [[ ! -d "${COMPLETIONS_FOLDER}" ]]; then
+  mkdir -p "${COMPLETIONS_FOLDER}" || 
+  {
+    exit 100
+  }
 fi
 
-if [[ ! -f "${completions_file_path}" ]]; then
-  kubectl_prepare_completion "${completions_file_path}"
+if [[ ! -f "${COMPLETIONS_FILE_PATH}" ]]; then
+  make_completions_file "${COMPLETIONS_FILE_PATH}"
 else
-  if [[ "$(kubectl_completion_sum)" != "$(kubectl_completion_file_sum "${completions_file_path}")" ]]; then
-    kubectl_prepare_completion "${completions_file_path}"
+  if [[ "$(calculate_sum "$(make_completions)")" != "$(calculate_sum "$(cat "${COMPLETIONS_FILE_PATH}")")" ]]; then
+    make_completions_file "${COMPLETIONS_FILE_PATH}"
   fi
 fi
 
 # Add completions to the FPATH
 typeset -TUx FPATH fpath
-fpath=("${completions_dir}" $fpath)
+fpath=("${COMPLETIONS_FOLDER}" $fpath)
 
-# Clear functions after use
-unfunction kubectl_completion
-unfunction kubectl_prepare_completion
-unfunction kubectl_completion_sum
-unfunction kubectl_completion_file_sum
+# Delete functions after use
+unfunction make_completions
+unfunction make_completions_file
+unfunction calculate_sum
+
+# Error codes
+# 101 - cant create completions folder
+# 102 - cant create completions file
+# 103 - wrong number of paramaters pass to function make_completions_file
+# 104 - wrong number of paramaters pass to function calculate_sum
