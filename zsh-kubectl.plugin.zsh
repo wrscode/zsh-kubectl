@@ -33,6 +33,10 @@ local completions_file_name="_kubectl"
 local completions_dir="${ZAP_PLUGIN_DIR}/zsh-kubectl/completions"
 local completions_file_path="${completions_dir}/${completions_file_name}"
 
+if [[ ! -d "${completions_dir}" ]]; then
+  mkdir "${completions_dir}"
+fi
+
 if [[ ! -f "${completions_file_path}" ]]; then
   kubectl_prepare_completion "${completions_file_path}"
 else
